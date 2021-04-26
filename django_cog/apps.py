@@ -3,7 +3,7 @@ from django.apps import AppConfig
 
 def create_cog_records():
     """
-    This function loops through any known 
+    This function loops through any known
     registered cogs and creates Cog objects
     for them.
     """
@@ -15,7 +15,7 @@ def create_cog_records():
             name=cog_name
         )
         active_cogs.append(cog_name)
-    
+
     # remove any that are no longer registered
     Cog.objects.all().exclude(name__in=active_cogs).delete()
 
@@ -24,4 +24,8 @@ class DjangoCogConfig(AppConfig):
     name = 'django_cog'
 
     def ready(self):
-        create_cog_records()
+        try:
+            create_cog_records()
+        except Exception as e:
+            print(e)
+            print("Failed to register cogs.  Maybe try running migrations?")
