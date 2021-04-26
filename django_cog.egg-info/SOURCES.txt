@@ -1,0 +1,13 @@
+README.md
+setup.py
+django_cog/__init__.py
+django_cog/admin.py
+django_cog/apps.py
+django_cog/celery.py
+django_cog/models.py
+django_cog/tests.py
+django_cog.egg-info/PKG-INFO
+django_cog.egg-info/SOURCES.txt
+django_cog.egg-info/dependency_links.txt
+django_cog.egg-info/requires.txt
+django_cog.egg-info/top_level.txt
