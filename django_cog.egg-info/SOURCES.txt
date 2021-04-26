@@ -1,3 +1,4 @@
+MANIFEST.in
 README.md
 setup.py
 django_cog/__init__.py
@@ -11,3 +12,6 @@ django_cog.egg-info/SOURCES.txt
 django_cog.egg-info/dependency_links.txt
 django_cog.egg-info/requires.txt
 django_cog.egg-info/top_level.txt
+django_cog/migrations/.DS_Store
+django_cog/migrations/0001_initial.py
+django_cog/migrations/__init__.py
