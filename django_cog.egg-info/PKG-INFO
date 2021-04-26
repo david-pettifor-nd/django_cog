@@ -1,13 +1,13 @@
 Metadata-Version: 2.1
 Name: django-cog
-Version: 0.1.0
+Version: 0.1.2
 Summary: Django library for launching pipelines of multiple stages and parallel tasks.
 Home-page: https://github.com/david-pettifor-nd/django_cog.git
 Author: David W Pettifor
 Author-email: dpettifo@nd.edu
 License: GPL
 Description: # Django-Cog
-        An `django-celery-beat` extension to build pipelines of chronological stages and parallel tasks.
+        A [django-celery-beat](https://github.com/celery/django-celery-beat) extension to build pipelines of chronological stages and parallel tasks.
         
         ## About
         Using the Djano admin, this library allows you to create pipelines of multi-staged tasks.  Each pipeline is launched at a specific time, utilizing the `django-celery-beat` `CrontabSchedule` object to define the time of launch.  Once launched, the pipeline looks for the first stage(s) of parallel tasks.  Each task is submitted to a celery worker for completion.  Once all tasks of a stage complete, the stage is considered complete and any proceeding stages will launch (assuming all previous stages required are completed).
@@ -26,7 +26,7 @@ Description: # Django-Cog
         
         #### Cogs:
         A `Cog` is a registered python function that can be used in a task.  To register a function, use the `@cog` function decorator:
-        ```lang:python
+        ```python
         from django_cog import cog
         
         @cog
@@ -45,7 +45,7 @@ Description: # Django-Cog
         ##### Parameters
         If your function has parameters needed, you can set these in the Task creation.  See below for an example:
         
-        ```lang:python
+        ```python
         from django_cog import cog
         
         @cog
@@ -55,7 +55,7 @@ Description: # Django-Cog
         ```
         
         Then in the Task Django admin page, set these variables in the `Arguments as JSON:` field:
-        ```lang:json
+        ```json
         {
             "a": 1,
             "b": 2
@@ -67,12 +67,12 @@ Description: # Django-Cog
         **IMPORTANT**: It is required that the library is installed and migrations ran PRIOR to registering functions as `cogs`.
         First install the library with:
         
-        ```lang:shell
-        pip install django_cog
+        ```bash
+        pip install django-cog
         ```
         
         Then add it to your Django application's `INSTALLED_APPS` inside your `settings.py` file:
-        ```lang:python
+        ```python
         INSTALLED_APPS = [
             ...
         
@@ -85,13 +85,13 @@ Description: # Django-Cog
         ```
         
         Lastly, run migrations:
-        ```lang:python
+        ```python
         python manage.py migrate django_cog
         ```
         
         #### Cog Registration
         Once migrations complete, it is safe to register your functions using the `cog` decorator:
-        ```lang:python
+        ```python
         from django_cog import cog
         
         @cog
@@ -104,7 +104,7 @@ Description: # Django-Cog
         
         Below is a sample docker-compose.yml segment to add the required services for Celery workers, Celery-Beat, and Redis:
         
-        ```lang:yml
+        ```yml
         version: '3'
         
         # 3 name volumes are named here.
@@ -238,7 +238,7 @@ Description: # Django-Cog
         ```
         
         And the matching `Dockerfile.celery` (of which the `celery` and `celerybeat` services will build from):
-        ```lang:dockerfile
+        ```dockerfile
         FROM python:3.8
         ENV PYTHONUNBUFFERED 1
         
