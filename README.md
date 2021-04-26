@@ -60,7 +60,7 @@ Then in the Task Django admin page, set these variables in the `Arguments as JSO
 First install the library with:
 
 ```bash
-pip install django_cog
+pip install django-cog
 ```
 
 Then add it to your Django application's `INSTALLED_APPS` inside your `settings.py` file:
