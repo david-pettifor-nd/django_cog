@@ -69,7 +69,7 @@ INSTALLED_APPS = [
     ...
 
     # Django-Cog:
-    'django_cog',
+    'django_cog.apps.DjangoCogConfig',
 
     # Optional (recommended):
     'django_celery_beat',

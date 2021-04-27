@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
                 ('created_date', models.DateTimeField(auto_now_add=True)),
                 ('modified_date', models.DateTimeField(auto_now=True)),
                 ('name', models.CharField(max_length=4096)),
-                ('launch_after_stage', models.ManyToManyField(related_name='next_stage', to='django_cog.Stage')),
+                ('launch_after_stage', models.ManyToManyField(related_name='next_stage', to='django_cog.Stage', blank=True)),
                 ('pipeline', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='stages', to='django_cog.Pipeline')),
             ],
             options={

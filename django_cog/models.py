@@ -79,7 +79,7 @@ class Stage(DefaultBaseModel):
     """
     name = models.CharField(max_length=4096)
     pipeline = models.ForeignKey(Pipeline, related_name='stages', on_delete=models.CASCADE)
-    launch_after_stage = models.ManyToManyField('Stage', related_name='next_stage')
+    launch_after_stage = models.ManyToManyField('Stage', related_name='next_stage', blank=True)
 
     def __str__(self):
         return f"{self.pipeline} - {self.name}"
