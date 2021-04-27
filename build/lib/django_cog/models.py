@@ -49,8 +49,10 @@ class Pipeline(DefaultBaseModel):
         Upon saving, make sure we create the cron schedule.
         """
         # then create the PeriodicTask
+        #   NOTE: Use the UUID of this pipeline as the name,
+        #   which will make deleting it safer
         periodic_task, created = PeriodicTask.objects.get_or_create(
-            name=self.name,
+            name=self.id,
             defaults={
                 'crontab': self.schedule
             }
@@ -64,6 +66,17 @@ class Pipeline(DefaultBaseModel):
         periodic_task.enabled = self.enabled
         periodic_task.save()
         super(Pipeline, self).save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """
+        Upon deleting, make sure to remove the created PeriodicTask.
+        """
+        # delete the periodic task that was created from this pipeline
+        if PeriodicTask.objects.filter(name=self.id).exists():
+            PeriodicTask.objects.filter(name=self.id).delete()
+        
+        # then delete the pipeline object
+        super(Pipeline, self).delete(*args, **kwargs)
 
 
 class Stage(DefaultBaseModel):
