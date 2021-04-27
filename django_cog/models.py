@@ -136,6 +136,11 @@ class EntityRun(DefaultBaseModel):
             string += ' COMPLETED'
         return string
 
+    def runtime(self):
+        if self.completed_on:
+            return (self.completed_on - self.started_on)
+        return None
+
 
 class PipelineRun(EntityRun):
     """
@@ -207,3 +212,6 @@ class TaskRun(EntityRun):
 
     def __str__(self):
         return f"{str(self.task)} {self.__str_runtimes__()}"
+
+    class Meta:
+        ordering = ['completed_on']

@@ -45,13 +45,13 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.register(PipelineRun)
 class PipelineRunAdmin(admin.ModelAdmin):
-    list_display = ["pipeline", "started_on", "completed_on"]
+    list_display = ["pipeline", "started_on", "completed_on", "runtime"]
     search_fields = ["pipeline", "started_on"]
 
 
 @admin.register(StageRun)
 class StageRunAdmin(admin.ModelAdmin):
-    list_display = ["stage", "pipeline", "started_on", "completed_on"]
+    list_display = ["stage", "pipeline", "started_on", "completed_on", "runtime"]
     search_fields = ["stage", "pipeline", "started_on"]
 
     def pipeline(self, obj):
@@ -60,7 +60,7 @@ class StageRunAdmin(admin.ModelAdmin):
 
 @admin.register(TaskRun)
 class TaskRunAdmin(admin.ModelAdmin):
-    list_display = ["task", "stage", "pipeline", "started_on", "completed_on"]
+    list_display = ["task", "stage", "pipeline", "started_on", "completed_on", "runtime"]
     search_fields = ["task", "stage", "pipeline", "started_on"]
 
     def pipeline(self, obj):

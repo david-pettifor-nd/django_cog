@@ -1,11 +1,11 @@
 Metadata-Version: 2.1
 Name: django-cog
-Version: 0.1.7
+Version: 0.2.0
 Summary: Django library for launching pipelines of multiple stages and parallel tasks.
 Home-page: https://github.com/david-pettifor-nd/django_cog.git
 Author: David W Pettifor
 Author-email: dpettifo@nd.edu
-License: GPL
+License: MIT
 Description: # Django-Cog
         A [django-celery-beat](https://github.com/celery/django-celery-beat) extension to build pipelines of chronological stages and parallel tasks.
         
@@ -267,7 +267,7 @@ Description: # Django-Cog
         # No need for an entry point as they are defined in the docker-compose.yml services
         ```
 Platform: UNKNOWN
-Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 3
 Classifier: Programming Language :: Python :: 3.8
 Classifier: Framework :: Django :: 2.2
