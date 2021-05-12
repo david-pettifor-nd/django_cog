@@ -71,6 +71,9 @@ INSTALLED_APPS = [
     # Django-Cog:
     'django_cog.apps.DjangoCogConfig',
 
+    # Required for nested inline child views in the Django Admin:
+    'nested_inline',
+
     # Optional (recommended):
     'django_celery_beat',
 ]
