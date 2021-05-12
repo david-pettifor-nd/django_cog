@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="django-cog",
-    version="1.0.1",
+    version="1.1.0",
     description="Django library for launching pipelines of multiple stages and parallel tasks.",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -26,5 +26,5 @@ setup(
     ],
     packages=["django_cog"],
     include_package_data=True,
-    install_requires=["celery", "django-celery-beat"]
+    install_requires=["celery", "django-celery-beat", "django-nested-inline>=0.4.2"]
 )

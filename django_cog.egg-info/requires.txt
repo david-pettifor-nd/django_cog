@@ -1,2 +1,3 @@
 celery
 django-celery-beat
+django-nested-inline>=0.4.2
