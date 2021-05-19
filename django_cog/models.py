@@ -153,7 +153,9 @@ class EntityRun(DefaultBaseModel):
         if self.completed_on:
             return (self.completed_on - self.started_on)
         return None
-
+    
+    class Meta:
+        ordering = ['-completed_on', '-started_on']
 
 class PipelineRun(EntityRun):
     """
@@ -174,7 +176,6 @@ class PipelineRun(EntityRun):
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
 
         super(PipelineRun, self).save(*args, **kwargs)
-
 
 class StageRun(EntityRun):
     """
