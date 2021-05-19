@@ -7,6 +7,10 @@ import json
 
 __all__ = ['celery_app']
 
+# default sample for calculating weight of tasks
+TASK_WEIGHT_SAMPLE_SIZE = 10
+
+
 def CogRegistration():
     """
     Decorator used to register tasks.
@@ -117,7 +121,9 @@ def launch_stage(stage_id, pipeline_run_id):
         pipeline_run=pipeline_run
     )
 
-    tasks = stage.assigned_tasks.filter(enabled=True)
+    # order tasks by their weight
+    # this ensures the longest tasks get called first, which helps improve overall runtime
+    tasks = stage.assigned_tasks.filter(enabled=True).order_by('-weight')
     # launch all tasks concurrently
     for task in tasks:
         # assume default ("celery") queue, unless specified

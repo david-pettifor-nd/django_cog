@@ -4,6 +4,8 @@ import json
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 import datetime
 import pytz
+from . import TASK_WEIGHT_SAMPLE_SIZE
+from django.conf import settings
 
 
 class CeleryQueue(models.Model):
@@ -128,6 +130,7 @@ class Task(DefaultBaseModel):
     prevent_overlapping_calls = models.BooleanField(default=True)
     enabled = models.BooleanField(default=True)
     queue = models.ForeignKey(CeleryQueue, related_name='assigned_tasks', on_delete=models.SET_NULL, default=1, null=True)
+    weight = models.DecimalField(decimal_places=5, max_digits=12, default=1.0)
 
     def __str__(self):
         if self.name:
@@ -174,6 +177,31 @@ class PipelineRun(EntityRun):
         ).count()
         if required == completed:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
+
+            # do we want to auto-update weight?
+            if not hasattr(settings, 'DJANGO_COG_AUTO_WEIGHT') or settings.DJANGO_COG_AUTO_WEIGHT:
+                # pull the weight sample size
+                sample_size = TASK_WEIGHT_SAMPLE_SIZE
+                if hasattr(settings, 'DJANGO_COG_TASK_WEIGHT_SAMPLE_SIZE'):
+                    sample_size = settings.DJANGO_COG_TASK_WEIGHT_SAMPLE_SIZE
+
+                # make a way to compute runtime from SQL:
+                duration = models.ExpressionWrapper(
+                    models.F('completed_on') - models.F('started_on'),
+                    output_field=models.fields.DurationField()
+                )
+
+                # if we're completed, let's update the weights of all our tasks
+                for stage in self.pipeline.stages.all():
+                    # update each tasks in the stage
+                    for task in stage.assigned_tasks.all():
+                        # get a sample of this tasks runs
+                        average_weight = task.runs.all()[:sample_size].annotate(
+                            duration=duration
+                        ).aggregate(models.Avg('duration'))['duration__avg'].total_seconds()
+                        task.weight  = average_weight
+                        task.save()
+
 
         super(PipelineRun, self).save(*args, **kwargs)
 

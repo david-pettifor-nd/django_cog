@@ -277,3 +277,22 @@ services:
     celery:
         command: celery -A django_cog worker -l info -Q queue_name
 ```
+
+
+## Task Optimization and Weights
+
+In order to achieve better runtimes, tasks are queued in order of greatest "weight" first.  This works best in scenarios where you have some `n` number of tasks that have a longer run time, but have extra tasks whose summation runtimes do not exceed that of the longer tasks.  The longer tasks will be launched first, allowing the runtime of each stage to be in direct correlation of the longest running individual task, rather than an arbitrary coefficient of shorter tasks that happened to be queued up before it.
+
+The weight of a task is updated at the end of each of its Pipeline run completions.  The `weight` field of a `Task` is literally the average number of total seconds it took to complete.  (NOTE: This field is limited to 11 decimal places with a precision of 5 points, which means the maximum runtime supported for a single task is roughly 11.5 days).
+
+The sample size taken defaults to the past 10 runtimes of that task, but this can be adjusted by adding the following to your Django `settings.py`:
+```python
+DJANGO_COG_TASK_WEIGHT_SAMPLE_SIZE = 10
+```
+
+If you do not want to have the weight auto-calculated, you can disable this calculation by adding the following to your Django `settings.py`:
+```python
+DJANGO_COG_AUTO_WEIGHT = False
+```
+
+Note: Tasks will still be ordered by weight (descending) when queued, but they all default to a weight of `1` prior to any runs.  You can also manually adjust this weight through the `Task` Django admin, which enables you to determine the order of queuing yourself (which of course requires the disabling of auto-weight calculation, as described above).

@@ -46,8 +46,8 @@ class StageAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ["task_name", "cog", "stage", "pipeline"]
-    search_fields = ["cog"]
+    list_display = ["task_name", "cog", "stage", "pipeline", "queue", "weight"]
+    search_fields = ["cog", "queue"]
 
     def pipeline(self, obj):
         return obj.stage.pipeline

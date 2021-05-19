@@ -7,10 +7,15 @@ from .models import (
     Task,
     PipelineRun,
     StageRun,
-    TaskRun
+    TaskRun,
+    CeleryQueue
 )
 
 # Register your models here.
+@admin.register(CeleryQueue)
+class CeleryQueueAdmin(admin.ModelAdmin):
+    list_display = ["queue_name"]
+    search_fields = ["queue_name"]
 
 @admin.register(Cog)
 class CogAdmin(admin.ModelAdmin):
@@ -41,8 +46,8 @@ class StageAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ["task_name", "cog", "stage", "pipeline"]
-    search_fields = ["cog"]
+    list_display = ["task_name", "cog", "stage", "pipeline", "queue", "weight"]
+    search_fields = ["cog", "queue"]
 
     def pipeline(self, obj):
         return obj.stage.pipeline
