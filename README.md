@@ -261,3 +261,19 @@ RUN pip install -r requirements/custom.txt
 
 # No need for an entry point as they are defined in the docker-compose.yml services
 ```
+
+## Queues
+
+You can create specific queues within celery, and assign tasks to these queues.  Within the `Task` Django admin, you'll find a `queue` field that defaults to `celery`.  This is the default queue that celery works on.  This queue option is created automatically and is used as the default when you run the django-cog migrations.
+
+#### Adding Queues
+
+If you want to have a separate collection of workers dedicated for certain tasks, create a new `CeleryQueue` record in the Django admin and set your tasks to this queue.
+
+Additionally, you'll need workers to work on this queue.  You can do this by adding a `-Q queue_name` parameter to the `command` call in the `docker-compose.yml` file's `celery` service:
+
+```yml
+services:
+    celery:
+        command: celery -A django_cog worker -l info -Q queue_name
+```

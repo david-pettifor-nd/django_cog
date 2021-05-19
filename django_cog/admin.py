@@ -7,10 +7,15 @@ from .models import (
     Task,
     PipelineRun,
     StageRun,
-    TaskRun
+    TaskRun,
+    CeleryQueue
 )
 
 # Register your models here.
+@admin.register(CeleryQueue)
+class CeleryQueueAdmin(admin.ModelAdmin):
+    list_display = ["queue_name"]
+    search_fields = ["queue_name"]
 
 @admin.register(Cog)
 class CogAdmin(admin.ModelAdmin):

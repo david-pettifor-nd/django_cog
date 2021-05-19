@@ -6,7 +6,19 @@ import datetime
 import pytz
 
 
-# Create your models here.
+class CeleryQueue(models.Model):
+    """
+    A way to control which queue goes where.
+    The default queue django-celery uses is "celery".
+    If you want to follow a specific queue, call celery with
+    the "-Q queue_name" parameter.
+    """
+    queue_name = models.CharField(max_length=4096)
+
+    def __str__(self):
+        return self.queue_name
+
+
 class DefaultBaseModel(models.Model):
     """
     Abstract base model that is used to add `created_date`
@@ -115,6 +127,7 @@ class Task(DefaultBaseModel):
     arguments_as_json = models.TextField(blank=True, null=True)
     prevent_overlapping_calls = models.BooleanField(default=True)
     enabled = models.BooleanField(default=True)
+    queue = models.ForeignKey(CeleryQueue, related_name='assigned_tasks', on_delete=models.SET_NULL, default=1, null=True)
 
     def __str__(self):
         if self.name:

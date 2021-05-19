@@ -120,7 +120,17 @@ def launch_stage(stage_id, pipeline_run_id):
     tasks = stage.assigned_tasks.filter(enabled=True)
     # launch all tasks concurrently
     for task in tasks:
-        launch_task.delay(task_id=task.id, stage_run_id=stage_run.id)
+        # assume default ("celery") queue, unless specified
+        queue = 'celery'
+        if task.queue:
+            queue = task.queue.queue_name
+        launch_task.apply_async(
+            queue = queue,
+            kwargs = {
+                'task_id': task.id,
+                'stage_run_id': stage_run.id
+            }
+        )
 
 @celery_app.task
 def launch_pipeline(*args, **kwargs):

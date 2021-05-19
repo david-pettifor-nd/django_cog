@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: django-cog
-Version: 1.1.0
+Version: 1.1.1
 Summary: Django library for launching pipelines of multiple stages and parallel tasks.
 Home-page: https://github.com/david-pettifor-nd/django_cog.git
 Author: David W Pettifor
@@ -78,6 +78,9 @@ Description: # Django-Cog
         
             # Django-Cog:
             'django_cog.apps.DjangoCogConfig',
+        
+            # Required for nested inline child views in the Django Admin:
+            'nested_inline',
         
             # Optional (recommended):
             'django_celery_beat',
