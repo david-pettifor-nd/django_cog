@@ -155,8 +155,9 @@ def launch_pipeline(*args, **kwargs):
         print("!! Could not find pipeline called.  Aboring.")
         exit()
     
-    # is this pipeline enabled?
-    if not pipeline.enabled:
+    # is this pipeline enabled, and do we check for it?
+    if 'user_initiated' not in kwargs and not pipeline.enabled:
+        print("Pipeline not enabled.  Aborting.")
         return
     
     # is there another run of this pipline still going? (and do we care?)

@@ -50,7 +50,7 @@ class Pipeline(DefaultBaseModel):
     A collection of stages all linked together.
     A pipeline is what gets called via a cron schedule
     """
-    schedule = models.ForeignKey(CrontabSchedule, on_delete=models.CASCADE)
+    schedule = models.ForeignKey(CrontabSchedule, null=True, blank=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=4096)
     enabled = models.BooleanField(default=True)
     prevent_overlapping_runs = models.BooleanField(default=True)
@@ -65,20 +65,28 @@ class Pipeline(DefaultBaseModel):
         # then create the PeriodicTask
         #   NOTE: Use the UUID of this pipeline as the name,
         #   which will make deleting it safer
-        periodic_task, created = PeriodicTask.objects.get_or_create(
-            name=self.id,
-            defaults={
-                'crontab': self.schedule
-            }
-        )
-        periodic_task.crontab = self.schedule
-        periodic_task.task = 'django_cog.launch_pipeline'
-        periodic_task.args = json.dumps([str(self.id)])
-        periodic_task.kwargs = json.dumps({
-            'pipeline_id': str(self.id)
-        })
-        periodic_task.enabled = self.enabled
-        periodic_task.save()
+        if self.schedule:
+            periodic_task, created = PeriodicTask.objects.get_or_create(
+                name=self.id,
+                defaults={
+                    'crontab': self.schedule
+                }
+            )
+            periodic_task.crontab = self.schedule
+            periodic_task.task = 'django_cog.launch_pipeline'
+            periodic_task.args = json.dumps([str(self.id)])
+            periodic_task.kwargs = json.dumps({
+                'pipeline_id': str(self.id)
+            })
+            periodic_task.enabled = self.enabled
+            periodic_task.save()
+        else:
+            # remove any periodic tasks that may have been previously
+            # created
+            PeriodicTask.objects.filter(
+                name=self.id
+            ).delete()
+
         super(Pipeline, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -201,8 +209,6 @@ class PipelineRun(EntityRun):
                         ).aggregate(models.Avg('duration'))['duration__avg'].total_seconds()
                         task.weight  = average_weight
                         task.save()
-
-
         super(PipelineRun, self).save(*args, **kwargs)
 
 class StageRun(EntityRun):
@@ -254,6 +260,3 @@ class TaskRun(EntityRun):
 
     def __str__(self):
         return f"{str(self.task)} {self.__str_runtimes__()}"
-
-    class Meta:
-        ordering = ['completed_on']

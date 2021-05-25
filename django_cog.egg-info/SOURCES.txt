@@ -18,4 +18,6 @@ django_cog/migrations/0002_auto_20210519_0824.py
 django_cog/migrations/0003_task_queue.py
 django_cog/migrations/0004_auto_20210519_0931.py
 django_cog/migrations/0005_auto_20210519_1006.py
+django_cog/migrations/0006_auto_20210525_0809.py
+django_cog/migrations/0007_auto_20210525_0810.py
 django_cog/migrations/__init__.py

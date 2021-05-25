@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.shortcuts import HttpResponseRedirect
+from . import launch_pipeline
 from nested_inline.admin import NestedStackedInline, NestedModelAdmin
 from .models import (
     Cog,
@@ -35,6 +37,17 @@ class PipelineAdmin(NestedModelAdmin):
     list_display = ["name", "schedule", "enabled"]
     search_fields = ["name"]
     inlines = [StagesInLine,]
+    change_form_template = 'change_form.html'
+
+    def response_change(self, request, obj):
+        """
+        Override to support the "Launch Now" button.
+        """
+        if "_launchbutton" in request.POST:
+            launch_pipeline.delay(pipeline_id=obj.id, user_initiated=True)
+            self.message_user(request, "Pipeline launch has been initiated.")
+            return HttpResponseRedirect(".")
+        return super().response_change(request, obj)
 
 
 @admin.register(Stage)
