@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: django-cog
-Version: 1.2.1
+Version: 1.2.2
 Summary: Django library for launching pipelines of multiple stages and parallel tasks.
 Home-page: https://github.com/david-pettifor-nd/django_cog.git
 Author: David W Pettifor
@@ -13,7 +13,11 @@ Description: # Django-Cog
         Using the Djano admin, this library allows you to create pipelines of multi-staged tasks.  Each pipeline is launched at a specific time, utilizing the `django-celery-beat` `CrontabSchedule` object to define the time of launch.  Once launched, the pipeline looks for the first stage(s) of parallel tasks.  Each task is submitted to a celery worker for completion.  Once all tasks of a stage complete, the stage is considered complete and any proceeding stages will launch (assuming all previous stages required are completed).
         
         ### Pipelines
-        A pipeline is a collection of stages.  It has a launch schedule tied to a `CronSchedule` that defines when the pipeline should be launched.  By default, a pipeline will not launch if it detects that a previous launch has not yet completed.
+        A pipeline is a collection of stages.  It has an optional launch schedule tied to a `CronSchedule` that defines when the pipeline should be launched.  By default, a pipeline will not launch if it detects that a previous launch has not yet completed.
+        
+        You can also leave the launch schedule blank should you not want a particular pipeline to run on its own.  Instead, clicking the `Launch Now` button on that pipeline's Django admin page will begin its execution.
+        
+        _Note:_ If a pipeline was previously scheduled using a `CronSchedule` object but needs to be taken off the schedule, simply set the `Schedule` field of the pipeline to the first option of the drop-down menu (`---------`).  This will remove the generated `PeriodicTask` within the database scheduler, preventing further auto-execution of that pipeline.
         
         ### Stages
         A stage is a collection of tasks that can all be ran independently (and in parallel) of each other.  It can be dependent on any number of previous stages to be complete before launching, but will be launched upon the completion of all prerequisite stages.

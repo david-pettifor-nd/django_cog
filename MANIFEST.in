@@ -1,1 +1,2 @@
 include django_cog/migrations/*
+include django_cog/templates/*

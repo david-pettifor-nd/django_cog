@@ -21,3 +21,4 @@ django_cog/migrations/0005_auto_20210519_1006.py
 django_cog/migrations/0006_auto_20210525_0809.py
 django_cog/migrations/0007_auto_20210525_0810.py
 django_cog/migrations/__init__.py
+django_cog/templates/change_form.html
