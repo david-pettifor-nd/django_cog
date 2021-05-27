@@ -99,6 +99,22 @@ def my_task():
     pass
 ```
 
+##### Manual Registration
+If the library doesn't pick up your registered cogs and doesn't create `Cog` records in the admin automatically, you can call the `Cog` record creation function manually in the Django shell:
+```python
+from django_cog.apps import create_cog_records
+create_cog_records()
+```
+
+_Note_: This does require the functions to be registered cogs.  You can list the functions `django_cog` has discovered with:
+```python
+from django_cog import cog
+print(cog.all)
+```
+This will output a dictionary where the key is the function name it discovered, and the value is the actual function itself.
+
+__If your function is not listed here:__ this means the registration was not called.  This is likely due to the function not being imported in your applications `__init__.py`.  Double check to make sure you are importing the function somewhere that gets called on Django's startup (`__init__.py` is the recommended place for this).
+
 ## Docker-Compose
 
 Below is a sample docker-compose.yml segment to add the required services for Celery workers, Celery-Beat, and Redis:

@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: django-cog
-Version: 1.2.2
+Version: 1.2.3
 Summary: Django library for launching pipelines of multiple stages and parallel tasks.
 Home-page: https://github.com/david-pettifor-nd/django_cog.git
 Author: David W Pettifor
@@ -106,6 +106,22 @@ Description: # Django-Cog
             # do something in a celery worker
             pass
         ```
+        
+        ##### Manual Registration
+        If the library doesn't pick up your registered cogs and doesn't create `Cog` records in the admin automatically, you can call the `Cog` record creation function manually in the Django shell:
+        ```python
+        from django_cog.apps import create_cog_records
+        create_cog_records()
+        ```
+        
+        _Note_: This does require the functions to be registered cogs.  You can list the functions `django_cog` has discovered with:
+        ```python
+        from django_cog import cog
+        print(cog.all)
+        ```
+        This will output a dictionary where the key is the function name it discovered, and the value is the actual function itself.
+        
+        __If your function is not listed here:__ this means the registration was not called.  This is likely due to the function not being imported in your applications `__init__.py`.  Double check to make sure you are importing the function somewhere that gets called on Django's startup (`__init__.py` is the recommended place for this).
         
         ## Docker-Compose
         
