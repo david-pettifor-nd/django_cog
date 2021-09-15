@@ -1,6 +1,9 @@
+from django.core.checks.messages import Critical
 from django.db import models
 import uuid
 import json
+
+from django.db.models.fields import NullBooleanField
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 import datetime
 import pytz
@@ -38,6 +41,16 @@ class DefaultBaseModel(models.Model):
 class Cog(DefaultBaseModel):
     """
     A way to keep track of registered cogs
+    """
+    name = models.CharField(max_length=4096)
+
+    def __str__(self):
+        return self.name
+
+
+class CogErrorHandler(DefaultBaseModel):
+    """
+    A way to keep track of registered cogs error handlers
     """
     name = models.CharField(max_length=4096)
 
@@ -134,11 +147,13 @@ class Task(DefaultBaseModel):
     name = models.CharField(max_length=4096, blank=True, null=True)
     cog = models.ForeignKey(Cog, related_name='assigned_tasks', on_delete=models.CASCADE)
     stage = models.ForeignKey(Stage, related_name='assigned_tasks', on_delete=models.CASCADE)
+    error_handler = models.ForeignKey(CogErrorHandler, related_name='tasks', on_delete=models.SET_NULL, null=True, blank=True)
     arguments_as_json = models.TextField(blank=True, null=True)
     prevent_overlapping_calls = models.BooleanField(default=True)
     enabled = models.BooleanField(default=True)
     queue = models.ForeignKey(CeleryQueue, related_name='assigned_tasks', on_delete=models.SET_NULL, default=1, null=True)
     weight = models.DecimalField(decimal_places=5, max_digits=12, default=1.0)
+    critical = models.BooleanField(default=True)
 
     def __str__(self):
         if self.name:
@@ -173,6 +188,7 @@ class PipelineRun(EntityRun):
     Specific execution run of a pipeline.
     """
     pipeline = models.ForeignKey(Pipeline, related_name='runs', on_delete=models.CASCADE)
+    success = models.NullBooleanField()
 
     def __str__(self):
         return f"{str(self.pipeline)} {self.__str_runtimes__()}"
@@ -185,6 +201,11 @@ class PipelineRun(EntityRun):
         ).count()
         if required == completed:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
+
+            # did we complete successfully?  if we're here and haven't been set to false yet,
+            # then we can assume it's all good
+            if self.success is None:
+                self.success = True
 
             # do we want to auto-update weight?
             if not hasattr(settings, 'DJANGO_COG_AUTO_WEIGHT') or settings.DJANGO_COG_AUTO_WEIGHT:
@@ -217,6 +238,7 @@ class StageRun(EntityRun):
     """
     pipeline_run = models.ForeignKey(PipelineRun, related_name='stage_runs', on_delete=models.CASCADE)
     stage = models.ForeignKey(Stage, related_name='runs', on_delete=models.CASCADE)
+    success = models.NullBooleanField()
 
     def __str__(self):
         return f"{str(self.stage)} {self.__str_runtimes__()}"
@@ -230,12 +252,24 @@ class StageRun(EntityRun):
         if required == completed and self.completed_on is None:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
 
+            # did we complete it successfully?  default is yes unless we've been set
+            # to false by a failed task already
+            if self.success is None:
+                self.success = True
+
             # call the super to make sure that when we launch the next stage,
             # it knows we're done, and will be counted then
             super(StageRun, self).save(*args, **kwargs)
 
+            # make sure that any crashed tasks weren't critical...
+            required_completed = True
+            for task in self.task_runs.filter(success=False):
+                if task.task.critical:
+                    print("!! Found crashed tasks that are marked critical, so we are not launching the next stage!")
+                    required_completed = False
+
             # if this is the case, we can call the next stages!
-            if self.stage.next_stage.all().count() > 0:
+            if required_completed and self.stage.next_stage.all().count() > 0:
                 from django_cog import launch_stage
                 for stage in self.stage.next_stage.all():
                     launch_stage.delay(stage_id=stage.id, pipeline_run_id=self.pipeline_run.id)
@@ -257,6 +291,23 @@ class TaskRun(EntityRun):
     """
     stage_run = models.ForeignKey(StageRun, related_name='task_runs', on_delete=models.CASCADE)
     task = models.ForeignKey(Task, related_name='runs', on_delete=models.CASCADE)
+    success = models.NullBooleanField()
 
     def __str__(self):
         return f"{str(self.task)} {self.__str_runtimes__()}"
+
+
+class CogError(DefaultBaseModel):
+    """
+    Support for default cog error handler.
+    Stores information about the error in the database.
+    """
+    task_run = models.ForeignKey(TaskRun, related_name='errors', on_delete=models.CASCADE, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_created=True, auto_now_add=True)
+    error_type = models.CharField(max_length=1024, blank=True, null=True)
+    traceback = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.task_run.task.name} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+    class Meta:
+        ordering = ['-timestamp']

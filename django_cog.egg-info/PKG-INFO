@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: django-cog
-Version: 1.2.3
+Version: 1.3.0
 Summary: Django library for launching pipelines of multiple stages and parallel tasks.
 Home-page: https://github.com/david-pettifor-nd/django_cog.git
 Author: David W Pettifor
@@ -324,6 +324,49 @@ Description: # Django-Cog
         ```
         
         Note: Tasks will still be ordered by weight (descending) when queued, but they all default to a weight of `1` prior to any runs.  You can also manually adjust this weight through the `Task` Django admin, which enables you to determine the order of queuing yourself (which of course requires the disabling of auto-weight calculation, as described above).
+        
+        ## Error Handling
+        
+        Each task can be assigned as `Critical` (default `True`).  This will cause the pipeline to halt should any critical task fail to execute.
+        _NOTE_: Currently running tasks will be allowed to complete, but no new tasks of the same stage will launch, and no further stages of that pipeline will begin.
+        
+        This leaves the Pipeline in an `incomplete` state, so if the pipeline has been marked as "Prevent overlapping runs": the pipeline cannot be launched again until the incomplete pipeline run object has been deleted.
+        
+        #### Error Handlers
+        
+        Each task call is wrapped in a generic `try/except` clause.  Within the `except` clause, an error handler function is called.  By default, this is the `defaultCogErrorHandler`, which records the error in the `CogErrors` table in the Django admin.  This stores information on the error type, the task run that failed, the date/time of the error, and the traceback of the error.
+        
+        ##### Custom Error Handlers
+        
+        Each task can be assigned an error handler (if none are assigned, the `defaultCogErrorHandler` is used).  You can write your own error handler function and register it like so:
+        
+        ```python
+        from django_cog import cog_error_handler
+        
+        @cog_error_handler
+        def myErrorHandler(error):
+            """
+            Do something with the error (Excemption type)
+            """
+            print(error)
+        ```
+        
+        Any custom error handler needs to take in _at least_ one positional parameter, that is: the Excemption error.
+        
+        __OPTIONAL:__ You can also include a keyword argument `task_run` to have the failed task run object passed in:
+        
+        ```python
+        from django_cog import cog_error_handler
+        
+        @cog_error_handler
+        def myErrorHandler(error, task_run):
+            """
+            Do something with the error (Excemption type)
+            and know where it came from.
+            """
+            print("The following error came from the task:", task_run.task.name)
+            print(error)
+        ```
 Platform: UNKNOWN
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 3

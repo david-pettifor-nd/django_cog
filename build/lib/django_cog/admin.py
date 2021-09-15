@@ -4,13 +4,15 @@ from . import launch_pipeline
 from nested_inline.admin import NestedStackedInline, NestedModelAdmin
 from .models import (
     Cog,
+    CogErrorHandler,
     Pipeline,
     Stage,
     Task,
     PipelineRun,
     StageRun,
     TaskRun,
-    CeleryQueue
+    CeleryQueue,
+    CogError
 )
 
 # Register your models here.
@@ -21,6 +23,18 @@ class CeleryQueueAdmin(admin.ModelAdmin):
 
 @admin.register(Cog)
 class CogAdmin(admin.ModelAdmin):
+    list_display = ["name"]
+    search_fields = ["name"]
+
+@admin.register(CogError)
+class CogErrorAdmin(admin.ModelAdmin):
+    list_display = ["get_task_name", "error_type", "timestamp"]
+
+    def get_task_name(self, obj):
+        return obj.task_run.task.name
+
+@admin.register(CogErrorHandler)
+class CogErrorHandlerAdmin(admin.ModelAdmin):
     list_display = ["name"]
     search_fields = ["name"]
 
@@ -43,8 +57,15 @@ class PipelineAdmin(NestedModelAdmin):
         """
         Override to support the "Launch Now" button.
         """
+        t = Task.objects.get(name='break me')
+        print("FROM ADMIN:", t.name, t.critical)
         if "_launchbutton" in request.POST:
-            launch_pipeline.delay(pipeline_id=obj.id, user_initiated=True)
+            launch_pipeline.apply_async(
+                queue='celery',
+                kwargs = {
+                    'pipeline_id': obj.id, 
+                    'user_initiated': True
+                })
             self.message_user(request, "Pipeline launch has been initiated.")
             return HttpResponseRedirect(".")
         return super().response_change(request, obj)
