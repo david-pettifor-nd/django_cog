@@ -130,13 +130,7 @@ def launch_stage(stage_id, pipeline_run_id):
         queue = 'celery'
         if task.queue:
             queue = task.queue.queue_name
-        launch_task.apply_async(
-            queue = queue,
-            kwargs = {
-                'task_id': task.id,
-                'stage_run_id': stage_run.id
-            }
-        )
+        
 
 @celery_app.task
 def launch_pipeline(*args, **kwargs):

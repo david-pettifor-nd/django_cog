@@ -1,9 +1,10 @@
-import functools
 from .celery import celery_app as celery_app
 from celery.decorators import task
 import datetime
 import pytz
 import json
+import traceback
+import inspect
 
 __all__ = ['celery_app']
 
@@ -26,6 +27,38 @@ def CogRegistration():
     return registrar
 
 cog = CogRegistration()
+
+
+def CogErrorHandlerRegistration():
+    """
+    Decorator used to register error handlers.
+
+    Shamelessly stolen from: https://stackoverflow.com/questions/5707589/calling-functions-by-array-index-in-python/5707605#5707605
+    """
+    registry = {}
+    def registrar(func):
+        registry[func.__name__] = func
+        return func  # normally a decorator returns a wrapped function, 
+                     # but here we return func unmodified, after registering it
+    registrar.all = registry
+    return registrar
+
+cog_error_handler = CogErrorHandlerRegistration()
+
+
+@cog_error_handler
+def defaultCogErrorHandler(error, task_run=None):
+    """
+    Default cog error handler.  Records the error's type, time, and traceback
+    into the database.
+    """
+    from .models import CogError
+    error_info = "".join(traceback.format_exception(etype=None, value=error, tb=error.__traceback__))
+    CogError.objects.create(
+        task_run=task_run,
+        traceback=error_info,
+        error_type=type(error).__name__
+    )
 
 
 # //-- Below are the Celery tasks used to launch Tasks, Stages, and Pipelines --//
@@ -53,6 +86,12 @@ def launch_task(task_id, stage_run_id):
         print("!! Could not find stage run called.  Aboring.")
         exit()
     
+    # make sure a previous task hasn't failed, if it's critical
+    for previous_task in stage_run.task_runs.filter(success=False):
+        if previous_task.task.critical:
+            print("!! A previously crashed task was critical to the pipeline, so we're aborting.")
+            exit()
+    
     # do we already have a task running that hasn't completed (and do we care)?
     # note: this check is cross-stage checking.  Really, this shouldn't ever fire off
     # unless we start a new run of the Pipeline before a previous one has finished,
@@ -74,10 +113,40 @@ def launch_task(task_id, stage_run_id):
             kwargs = json.loads(task.arguments_as_json)
         cog.all[task.cog.name](**kwargs)
     except Exception as e:
-        print("!! Task failed:", e)
+        # if there's an error handler for this function, pass what ever sort of Exception we got
+        # into the handler
+        if task.error_handler:
+            try:
+                signature = inspect.signature(cog_error_handler.all[task.error_handler.name])
+                if 'task_run' in signature.parameters:
+                    cog_error_handler.all[task.error_handler.name](e, task_run=task_run)
+                else:
+                    cog_error_handler.all[task.error_handler.name](e)
+            except Exception as error_handler_error:
+                print("!! Failed to execute error handler!  Make sure it has only one parameter to take in (the error Exception)")
+                print(error_handler_error)
+        else:
+            # do we at least have the default one that should come with this library? (like..it's literally defined above)
+            if 'defaultCogErrorHandler' in cog_error_handler.all:
+                # then we can use this as our default
+                cog_error_handler.all['defaultCogErrorHandler'](e, task_run=task_run)
+
+        # save this task run as having failed
+        task_run.success = False
+        task_run.save()
+
+        # also mark the stage and pipelines
+        stage_run.success = False
+        stage_run.save()
+        stage_run.pipeline_run.success = False
+        stage_run.pipeline_run.save()
     
     # mark that this task is completed
     task_run.completed_on = datetime.datetime.now(tz=pytz.UTC)
+
+    # mark it successful unless it failed above
+    if task_run.success is None:
+        task_run.success = True
     task_run.save()
 
     # trigger the save on our stage run so we can check if we're done with all of our tasks
@@ -126,6 +195,7 @@ def launch_stage(stage_id, pipeline_run_id):
     tasks = stage.assigned_tasks.filter(enabled=True).order_by('-weight')
     # launch all tasks concurrently
     for task in tasks:
+        print("== FROM STAGE:", task.name, task.critical)
         # assume default ("celery") queue, unless specified
         queue = 'celery'
         if task.queue:
