@@ -367,6 +367,6 @@ Should a task marked `critical` fail, the task, its stage, and pipeline will fal
 However, you _can_ override this safety feature by setting `DJANGO_COG_OVERLAP_FAILED = True` in your Django settings.  Doing this will allow a pipeline to launch even if the last run of that pipeline failed.
 
 
-### Canceling Pipeline Runs
+## Canceling Pipeline Runs
 
 When a pipeline is currently running, you can visit the `Pipeline Runs` Django admin page to see which ones are running (displayed at the top of the list).  Clicking on the details of a running pipeline will show a red `Cancel Run` button at the top.  Clicking this will send the pipeline into a `Canceled` state.  Any currently running tasks will be allowed to complete.  As soon as the last one of the currently running tasks completes, it will update the stage's `Completed On` field to properly reflect the end execution timestamp of the last task.  The stage will then also fall into a `Canceled` state, and no further stages or tasks will be launched.
