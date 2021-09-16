@@ -57,8 +57,6 @@ class PipelineAdmin(NestedModelAdmin):
         """
         Override to support the "Launch Now" button.
         """
-        t = Task.objects.get(name='break me')
-        print("FROM ADMIN:", t.name, t.critical)
         if "_launchbutton" in request.POST:
             launch_pipeline.apply_async(
                 queue='celery',
@@ -138,13 +136,25 @@ class TaskRunInLine(admin.TabularInline):
 
 @admin.register(PipelineRun)
 class PipelineRunAdmin(admin.ModelAdmin):
-    list_display = ["pipeline", "started_on", "completed_on", "runtime"]
+    list_display = ["pipeline", "status", "started_on", "completed_on", "runtime"]
     search_fields = ["pipeline", "started_on"]
     inlines = [StageRunInLine,]
+    change_form_template = 'cancel_run.html'
+
+    def response_change(self, request, obj):
+        """
+        Override to support the "Cancel Run" button.
+        """
+        if "_cancelbutton" in request.POST:
+            obj.status = 'Canceled'
+            obj.save()
+            self.message_user(request, "Pipeline run will halt after its currently running tasks complete.")
+            return HttpResponseRedirect(".")
+        return super().response_change(request, obj)
 
 @admin.register(StageRun)
 class StageRunAdmin(admin.ModelAdmin):
-    list_display = ["stage", "pipeline", "started_on", "completed_on", "runtime"]
+    list_display = ["stage", "pipeline", "status", "started_on", "completed_on", "runtime"]
     search_fields = ["stage", "pipeline", "started_on"]
     inlines = [TaskRunInLine,]
 
@@ -154,7 +164,7 @@ class StageRunAdmin(admin.ModelAdmin):
 
 @admin.register(TaskRun)
 class TaskRunAdmin(admin.ModelAdmin):
-    list_display = ["task", "stage", "pipeline", "started_on", "completed_on", "runtime"]
+    list_display = ["task", "stage", "pipeline", "status", "started_on", "completed_on", "runtime"]
     search_fields = ["task", "stage", "pipeline", "started_on"]
 
     def pipeline(self, obj):

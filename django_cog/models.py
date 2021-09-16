@@ -1,9 +1,7 @@
-from django.core.checks.messages import Critical
 from django.db import models
 import uuid
 import json
 
-from django.db.models.fields import NullBooleanField
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 import datetime
 import pytz
@@ -166,8 +164,16 @@ class EntityRun(DefaultBaseModel):
     """
     Base model for runs.  Includes a start and completed on.
     """
+    STATUS_OPTIONS = [
+        ('Queued', 'Queued'),
+        ('Running', 'Running'),
+        ('Failed', 'Failed'),
+        ('Completed', 'Completed'),
+        ('Canceled', 'Canceled')
+    ]
     started_on = models.DateTimeField(auto_now_add=True)
     completed_on = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default='Queued', null=True)
     
     def __str_runtimes__(self):
         string = f"[{self.started_on}]"
@@ -206,6 +212,10 @@ class PipelineRun(EntityRun):
             # then we can assume it's all good
             if self.success is None:
                 self.success = True
+
+            # if we were running (haven't failed critically), update to completed
+            if self.status == 'Running':
+                self.status = 'Completed'
 
             # do we want to auto-update weight?
             if not hasattr(settings, 'DJANGO_COG_AUTO_WEIGHT') or settings.DJANGO_COG_AUTO_WEIGHT:
@@ -256,6 +266,10 @@ class StageRun(EntityRun):
             # to false by a failed task already
             if self.success is None:
                 self.success = True
+            
+            # if we were running (haven't failed critically), update to completed
+            if self.status == 'Running':
+                self.status = 'Completed'
 
             # call the super to make sure that when we launch the next stage,
             # it knows we're done, and will be counted then
@@ -267,14 +281,26 @@ class StageRun(EntityRun):
                 if task.task.critical:
                     print("!! Found crashed tasks that are marked critical, so we are not launching the next stage!")
                     required_completed = False
+            
+            # and make sure we haven't had a call for cancellation yet...
+            canceled = False
+            if self.pipeline_run.status == 'Canceled':
+                print("!! Found pipeline run in canceled state, so we are not launching the next stage.")
+                self.status = 'Canceled'
+                canceled = True
 
             # if this is the case, we can call the next stages!
-            if required_completed and self.stage.next_stage.all().count() > 0:
+            if required_completed and not canceled and self.stage.next_stage.all().count() > 0:
                 from django_cog import launch_stage
                 for stage in self.stage.next_stage.all():
                     launch_stage.delay(stage_id=stage.id, pipeline_run_id=self.pipeline_run.id)
 
         else:
+            # if we were canceled, the completed on time would be filled in.  we just need to
+            # mark ourselves as canceled now as well:
+            if self.pipeline_run.status == 'Canceled':
+                self.status = 'Canceled'
+
             # make sure to save this run in case we haven't completed yet...so our tasks
             # we're about to launch know who they belong to
             super(StageRun, self).save(*args, **kwargs)

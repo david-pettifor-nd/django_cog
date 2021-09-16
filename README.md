@@ -322,7 +322,7 @@ Note: Tasks will still be ordered by weight (descending) when queued, but they a
 Each task can be assigned as `Critical` (default `True`).  This will cause the pipeline to halt should any critical task fail to execute.
 _NOTE_: Currently running tasks will be allowed to complete, but no new tasks of the same stage will launch, and no further stages of that pipeline will begin.
 
-This leaves the Pipeline in an `incomplete` state, so if the pipeline has been marked as "Prevent overlapping runs": the pipeline cannot be launched again until the incomplete pipeline run object has been deleted.
+This leaves the Pipeline in a `Failed` state, so if the pipeline has been marked as "Prevent overlapping runs": the pipeline cannot be launched again until the incomplete pipeline run object has been deleted.  (See below about failed pipelines.)  Once the last task of a failed pipeline completes, the task will update the Pipeline's `Completed On` timestamp to reflect when that last task completed.
 
 #### Error Handlers
 
@@ -359,3 +359,14 @@ def myErrorHandler(error, task_run):
     print("The following error came from the task:", task_run.task.name)
     print(error)
 ```
+
+##### Failed Pipelines
+
+Should a task marked `critical` fail, the task, its stage, and pipeline will fall into a `Failed` state.  By default, new pipeline runs cannot be called if the last run failed.  This is done intentionally so the same error does not keep repeating itself.
+
+However, you _can_ override this safety feature by setting `DJANGO_COG_OVERLAP_FAILED = True` in your Django settings.  Doing this will allow a pipeline to launch even if the last run of that pipeline failed.
+
+
+### Canceling Pipeline Runs
+
+When a pipeline is currently running, you can visit the `Pipeline Runs` Django admin page to see which ones are running (displayed at the top of the list).  Clicking on the details of a running pipeline will show a red `Cancel Run` button at the top.  Clicking this will send the pipeline into a `Canceled` state.  Any currently running tasks will be allowed to complete.  As soon as the last one of the currently running tasks completes, it will update the stage's `Completed On` field to properly reflect the end execution timestamp of the last task.  The stage will then also fall into a `Canceled` state, and no further stages or tasks will be launched.

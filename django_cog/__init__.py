@@ -92,6 +92,11 @@ def launch_task(task_id, stage_run_id):
             print("!! A previously crashed task was critical to the pipeline, so we're aborting.")
             exit()
     
+    # make sure we haven't been canceled yet
+    if stage_run.pipeline_run.status == 'Canceled':
+        print("!! The pipeline run has been canceled.  Aborting task.")
+        exit()
+    
     # do we already have a task running that hasn't completed (and do we care)?
     # note: this check is cross-stage checking.  Really, this shouldn't ever fire off
     # unless we start a new run of the Pipeline before a previous one has finished,
@@ -111,6 +116,8 @@ def launch_task(task_id, stage_run_id):
         kwargs = {}
         if task.arguments_as_json:
             kwargs = json.loads(task.arguments_as_json)
+        task.status = 'Running'
+        task.save()
         cog.all[task.cog.name](**kwargs)
     except Exception as e:
         # if there's an error handler for this function, pass what ever sort of Exception we got
@@ -133,10 +140,17 @@ def launch_task(task_id, stage_run_id):
 
         # save this task run as having failed
         task_run.success = False
+        task_run.status = 'Failed'
         task_run.save()
 
         # also mark the stage and pipelines
         stage_run.success = False
+
+        # only mark the stage's status as failed if this task is critical
+        if task.critical:
+            stage_run.status = 'Failed'
+            stage_run.pipeline_run.status = 'Failed'
+
         stage_run.save()
         stage_run.pipeline_run.success = False
         stage_run.pipeline_run.save()
@@ -146,8 +160,19 @@ def launch_task(task_id, stage_run_id):
 
     # mark it successful unless it failed above
     if task_run.success is None:
+        task_run.status = 'Completed'
         task_run.success = True
     task_run.save()
+
+    # we need to check if the stage and pipeline has failed, and if we're the last running.
+    # this way we can say "this is when we completed"
+    # be sure to refresh from the DB in case another task has made changes:
+    stage_run.refresh_from_db()
+    if (stage_run.status == 'Failed' or stage_run.pipeline_run.status == 'Canceled') and stage_run.task_runs.all().first() == task_run:
+        # then we're the last one, so set the completed time for the stage run and pipeline run
+        stage_run.completed_on = datetime.datetime.now(tz=pytz.UTC)
+        stage_run.pipeline_run.completed_on = datetime.datetime.now(tz=pytz.UTC)
+        stage_run.pipeline_run.save()
 
     # trigger the save on our stage run so we can check if we're done with all of our tasks
     stage_run.save()
@@ -189,13 +214,14 @@ def launch_stage(stage_id, pipeline_run_id):
         stage=stage,
         pipeline_run=pipeline_run
     )
+    stage_run.status = 'Running'
+    stage_run.save()
 
     # order tasks by their weight
     # this ensures the longest tasks get called first, which helps improve overall runtime
     tasks = stage.assigned_tasks.filter(enabled=True).order_by('-weight')
     # launch all tasks concurrently
     for task in tasks:
-        print("== FROM STAGE:", task.name, task.critical)
         # assume default ("celery") queue, unless specified
         queue = 'celery'
         if task.queue:
@@ -217,6 +243,7 @@ def launch_pipeline(*args, **kwargs):
         print("!! Incorrect calling of function.  Could not find pipeline identifier.")
         exit()
 
+    from django.conf import settings
     from .models import Pipeline, PipelineRun
     # look up the pipeline
     try:
@@ -233,15 +260,25 @@ def launch_pipeline(*args, **kwargs):
     # is there another run of this pipline still going? (and do we care?)
     if pipeline.prevent_overlapping_runs and PipelineRun.objects.filter(
         pipeline=pipeline,
-        completed_on__isnull=True
+        status='Running'
     ).exists():
         print("!! Another instance of this pipeline has not completed.  Aborting.")
+        return
+    
+    # also check if there are failed runs, and if we should care about that
+    if pipeline.prevent_overlapping_runs and PipelineRun.objects.filter(
+        pipeline=pipeline
+    ).first().status == 'Failed' \
+    and (not hasattr(settings, 'DJANGO_COG_OVERLAP_FAILED') or settings.DJANGO_COG_OVERLAP_FAILED == False):
+        print("!! The last pipeline run failed and we cannot overlap failed runs.  Remove the failed pipeline run or set `DJANGO_COG_OVERLAP_FAILED` to True in your Django settings.  Aborting.")
         return
 
     # otherwise, create a new pipeline run
     pipeline_run = PipelineRun.objects.create(
         pipeline=pipeline
     )
+    pipeline_run.status = 'Running'
+    pipeline_run.save()
 
     # start the first stage
     first_stages = pipeline.stages.filter(

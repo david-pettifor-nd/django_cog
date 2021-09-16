@@ -1,0 +1,10 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block field_sets %}
+    {% if adminform.form.instance.status == 'Running' %}
+    <input type="submit" style="color: white; background-color: #ba2121;" value="{% trans 'Cancel Run' %}" name="_cancelbutton" />
+    {% endif %}
+
+    {{ block.super }}
+{% endblock %}
