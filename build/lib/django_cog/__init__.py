@@ -115,8 +115,8 @@ def launch_task(task_id, stage_run_id):
         kwargs = {}
         if task.arguments_as_json:
             kwargs = json.loads(task.arguments_as_json)
-        task.status = 'Running'
-        task.save()
+        task_run.status = 'Running'
+        task_run.save()
         cog.all[task.cog.name](**kwargs)
     except Exception as e:
         # if there's an error handler for this function, pass what ever sort of Exception we got

@@ -236,8 +236,8 @@ class PipelineRun(EntityRun):
                     for task in stage.assigned_tasks.all():
                         # get a sample of this tasks runs
                         average_weight = task.runs.all()[:sample_size].annotate(
-                            duration=duration
-                        ).aggregate(models.Avg('duration'))['duration__avg'].total_seconds()
+                            runtime=duration
+                        ).aggregate(models.Avg('runtime'))['runtime__avg'].total_seconds()
                         task.weight  = average_weight
                         task.save()
         super(PipelineRun, self).save(*args, **kwargs)
