@@ -1,5 +1,4 @@
 from .celery import celery_app as celery_app
-from celery.decorators import task
 import datetime
 import pytz
 import json
@@ -62,7 +61,7 @@ def defaultCogErrorHandler(error, task_run=None):
 
 
 # //-- Below are the Celery tasks used to launch Tasks, Stages, and Pipelines --//
-@task
+@celery_app.task
 def launch_task(task_id, stage_run_id):
     """
     Main celery task called when launching a new stage.
@@ -177,7 +176,7 @@ def launch_task(task_id, stage_run_id):
     # trigger the save on our stage run so we can check if we're done with all of our tasks
     stage_run.save()
 
-@task
+@celery_app.task
 def launch_stage(stage_id, pipeline_run_id):
     """
     Main celery task called when launching a new stage.
@@ -267,6 +266,8 @@ def launch_pipeline(*args, **kwargs):
     
     # also check if there are failed runs, and if we should care about that
     if pipeline.prevent_overlapping_runs and PipelineRun.objects.filter(
+        pipeline=pipeline
+    ).exists() and PipelineRun.objects.filter(
         pipeline=pipeline
     ).first().status == 'Failed' \
     and (not hasattr(settings, 'DJANGO_COG_OVERLAP_FAILED') or settings.DJANGO_COG_OVERLAP_FAILED == False):
