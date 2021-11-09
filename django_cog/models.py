@@ -234,8 +234,14 @@ class PipelineRun(EntityRun):
                 for stage in self.pipeline.stages.all():
                     # update each tasks in the stage
                     for task in stage.assigned_tasks.all():
+                        # do we have any runs that we can actually base an update off of?
+                        if not task.runs.filter(task__enabled=True).exists():
+                            continue
+
                         # get a sample of this tasks runs
-                        average_weight = task.runs.all()[:sample_size].annotate(
+                        average_weight = task.runs.filter(
+                            task__enabled=True
+                        )[:sample_size].annotate(
                             runtime=duration
                         ).aggregate(models.Avg('runtime'))['runtime__avg'].total_seconds()
                         task.weight  = average_weight
