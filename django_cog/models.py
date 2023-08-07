@@ -194,16 +194,21 @@ class PipelineRun(EntityRun):
     Specific execution run of a pipeline.
     """
     pipeline = models.ForeignKey(Pipeline, related_name='runs', on_delete=models.CASCADE)
-    success = models.NullBooleanField()
+    success = models.BooleanField(null=True)
 
     def __str__(self):
         return f"{str(self.pipeline)} {self.__str_runtimes__()}"
     
     def save(self, *args, **kwargs):
+        # do we have an ID yet?  if not, this means we're on our first stage
+        if not self.id:
+            super().save(*args, **kwargs)
+        
         # how many tasks need to be completed?
         required = self.pipeline.stages.all().count()
-        completed = self.stage_runs.filter(
-            completed_on__isnull=False
+        completed = StageRun.objects.filter(
+            completed_on__isnull=False,
+            pipeline_run=self
         ).count()
         if required == completed:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
@@ -246,6 +251,7 @@ class PipelineRun(EntityRun):
                         ).aggregate(models.Avg('runtime'))['runtime__avg'].total_seconds()
                         task.weight  = average_weight
                         task.save()
+        
         super(PipelineRun, self).save(*args, **kwargs)
 
 class StageRun(EntityRun):
@@ -254,16 +260,21 @@ class StageRun(EntityRun):
     """
     pipeline_run = models.ForeignKey(PipelineRun, related_name='stage_runs', on_delete=models.CASCADE)
     stage = models.ForeignKey(Stage, related_name='runs', on_delete=models.CASCADE)
-    success = models.NullBooleanField()
+    success = models.BooleanField(null=True)
 
     def __str__(self):
         return f"{str(self.stage)} {self.__str_runtimes__()}"
     
     def save(self, *args, **kwargs):
+        # do we have an ID yet?  if not, this means we're on our first stage
+        if not self.id:
+            super().save(*args, **kwargs)
+        
         # how many tasks need to be completed?
         required = self.stage.assigned_tasks.filter(enabled=True).count()
-        completed = self.task_runs.filter(
-            completed_on__isnull=False
+        completed = TaskRun.objects.filter(
+            completed_on__isnull=False,
+            stage_run=self
         ).count()
         if required == completed and self.completed_on is None:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
@@ -323,7 +334,7 @@ class TaskRun(EntityRun):
     """
     stage_run = models.ForeignKey(StageRun, related_name='task_runs', on_delete=models.CASCADE)
     task = models.ForeignKey(Task, related_name='runs', on_delete=models.CASCADE)
-    success = models.NullBooleanField()
+    success = models.BooleanField(null=True)
 
     def __str__(self):
         return f"{str(self.task)} {self.__str_runtimes__()}"

@@ -52,7 +52,7 @@ def defaultCogErrorHandler(error, task_run=None):
     into the database.
     """
     from .models import CogError
-    error_info = "".join(traceback.format_exception(etype=None, value=error, tb=error.__traceback__))
+    error_info = "".join(traceback.format_exception(error))
     CogError.objects.create(
         task_run=task_run,
         traceback=error_info,
