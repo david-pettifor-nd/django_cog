@@ -200,16 +200,14 @@ class PipelineRun(EntityRun):
         return f"{str(self.pipeline)} {self.__str_runtimes__()}"
     
     def save(self, *args, **kwargs):
-        # do we have an ID yet?  if not, this means we're on our first stage
-        if not self.id:
-            super().save(*args, **kwargs)
-        
         # how many tasks need to be completed?
         required = self.pipeline.stages.all().count()
-        completed = StageRun.objects.filter(
-            completed_on__isnull=False,
-            pipeline_run=self
-        ).count()
+        try:
+            completed = self.stage_runs.filter(
+                completed_on__isnull=False
+            ).count()
+        except:
+            completed = 0
         if required == completed:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
 
@@ -239,19 +237,12 @@ class PipelineRun(EntityRun):
                 for stage in self.pipeline.stages.all():
                     # update each tasks in the stage
                     for task in stage.assigned_tasks.all():
-                        # do we have any runs that we can actually base an update off of?
-                        if not task.runs.filter(task__enabled=True).exists():
-                            continue
-
                         # get a sample of this tasks runs
-                        average_weight = task.runs.filter(
-                            task__enabled=True
-                        )[:sample_size].annotate(
-                            runtime=duration
-                        ).aggregate(models.Avg('runtime'))['runtime__avg'].total_seconds()
+                        average_weight = task.runs.all()[:sample_size].annotate(
+                            duration=duration
+                        ).aggregate(models.Avg('duration'))['duration__avg'].total_seconds()
                         task.weight  = average_weight
                         task.save()
-        
         super(PipelineRun, self).save(*args, **kwargs)
 
 class StageRun(EntityRun):
@@ -266,16 +257,14 @@ class StageRun(EntityRun):
         return f"{str(self.stage)} {self.__str_runtimes__()}"
     
     def save(self, *args, **kwargs):
-        # do we have an ID yet?  if not, this means we're on our first stage
-        if not self.id:
-            super().save(*args, **kwargs)
-        
         # how many tasks need to be completed?
         required = self.stage.assigned_tasks.filter(enabled=True).count()
-        completed = TaskRun.objects.filter(
-            completed_on__isnull=False,
-            stage_run=self
-        ).count()
+        try:
+            completed = self.task_runs.filter(
+                completed_on__isnull=False
+            ).count()
+        except:
+            completed = 0
         if required == completed and self.completed_on is None:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
 
