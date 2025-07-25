@@ -116,9 +116,13 @@ def launch_task(task_id, stage_run_id):
         if task.arguments_as_json:
             kwargs = json.loads(task.arguments_as_json)
 
-        # also load the pipeline run arguments
+        # also load the pipeline run arguments, but only if each argument is actually defined in the function
         if task_run.stage_run.pipeline_run.arguments_as_json:
-            kwargs.update(json.loads(task_run.stage_run.pipeline_run.arguments_as_json))
+            pipeline_run_arguments = json.loads(task_run.stage_run.pipeline_run.arguments_as_json)
+            sig = inspect.signature(cog.all[task.cog.name])
+            for key, value in pipeline_run_arguments.items():
+                if key in sig.parameters:
+                    kwargs[key] = value
 
         task.status = 'Running'
         task.save()
