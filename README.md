@@ -97,7 +97,7 @@ And your task has static arguments:
 
 And you launch with runtime arguments:
 ```python
-pipeline.launch_pipeline(a=10, c=3, user_id=123, environment='production')
+pipeline.launch(a=10, c=3, user_id=123, environment='production')
 ```
 
 The task will receive:
