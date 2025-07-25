@@ -70,7 +70,7 @@ from django_cog.models import Pipeline
 pipeline = Pipeline.objects.get(name='my_pipeline')
 
 # Launch with additional kwargs
-pipeline.launch_pipeline(user_id=123, environment='production', custom_flag=True)
+pipeline.launch(user_id=123, environment='production', custom_flag=True)
 ```
 
 The runtime arguments (`user_id`, `environment`, `custom_flag`) will be stored in the PipelineRun record and automatically passed to all tasks in the pipeline. If a task has static arguments defined in the admin, the runtime arguments will be merged with them, with runtime arguments taking precedence in case of conflicts.
