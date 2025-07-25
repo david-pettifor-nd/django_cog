@@ -58,6 +58,59 @@ Then in the Task Django admin page, set these variables in the `Arguments as JSO
 }
 ```
 
+##### Runtime Arguments
+In addition to static parameters defined in the Task configuration, you can also pass additional arguments at runtime when launching a pipeline. These arguments are stored in the PipelineRun record and are merged with the task's static arguments when the task is executed.
+
+To pass runtime arguments when launching a pipeline programmatically:
+
+```python
+from django_cog.models import Pipeline
+
+# Get your pipeline
+pipeline = Pipeline.objects.get(name='my_pipeline')
+
+# Launch with additional kwargs
+pipeline.launch_pipeline(user_id=123, environment='production', custom_flag=True)
+```
+
+The runtime arguments (`user_id`, `environment`, `custom_flag`) will be stored in the PipelineRun record and automatically passed to all tasks in the pipeline. If a task has static arguments defined in the admin, the runtime arguments will be merged with them, with runtime arguments taking precedence in case of conflicts.
+
+For example, if your task function is defined as:
+```python
+from django_cog import cog
+
+@cog
+def process_data(a, b, c, user_id=None, environment=None):
+    # Process data with the provided arguments
+    result = a + b + c
+    print(f"Processing for user {user_id} in {environment} environment")
+    return result
+```
+
+And your task has static arguments:
+```json
+{
+    "a": 1,
+    "b": 2
+}
+```
+
+And you launch with runtime arguments:
+```python
+pipeline.launch_pipeline(a=10, c=3, user_id=123, environment='production')
+```
+
+The task will receive:
+```json
+{
+    "a": 10,        # Runtime argument overrides static
+    "b": 2,         # Static argument preserved
+    "c": 3,         # New runtime argument
+    "user_id": 123, # Runtime argument
+    "environment": "production"  # Runtime argument
+}
+```
+
 ## Installation
 
 **IMPORTANT**: It is required that the library is installed and migrations ran PRIOR to registering functions as `cogs`.

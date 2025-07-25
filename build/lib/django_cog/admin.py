@@ -106,7 +106,7 @@ class StageRunInLine(admin.TabularInline):
     readonly_fields = ('stage', 'started_on', 'completed_on', 'runtime')
     # this is merely for record keeping, and so we shouldn't
     # be adding any through the admin
-    def has_add_permission(self, request):
+    def has_add_permission(self, request, obj=None):
         return False
 
     def has_delete_permission(self, request, obj=None):
@@ -128,7 +128,7 @@ class TaskRunInLine(admin.TabularInline):
     readonly_fields = ('task', 'started_on', 'completed_on', 'runtime')
     # this is merely for record keeping, and so we shouldn't
     # be adding any through the admin
-    def has_add_permission(self, request):
+    def has_add_permission(self, request, obj=None):
         return False
 
     def has_delete_permission(self, request, obj=None):

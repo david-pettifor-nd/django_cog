@@ -110,6 +110,20 @@ class Pipeline(DefaultBaseModel):
         
         # then delete the pipeline object
         super(Pipeline, self).delete(*args, **kwargs)
+    
+    def launch(self, *args, **kwargs):
+        """
+        Launch the pipeline.
+        """
+        from . import launch_pipeline
+        launch_pipeline.apply_async(
+            queue='celery',
+            kwargs = {
+                'pipeline_id': self.id,
+                'user_initiated': True,
+                **kwargs
+            }
+        )
 
 
 class Stage(DefaultBaseModel):
@@ -195,6 +209,7 @@ class PipelineRun(EntityRun):
     """
     pipeline = models.ForeignKey(Pipeline, related_name='runs', on_delete=models.CASCADE)
     success = models.BooleanField(null=True)
+    arguments_as_json = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{str(self.pipeline)} {self.__str_runtimes__()}"

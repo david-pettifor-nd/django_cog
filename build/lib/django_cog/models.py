@@ -110,6 +110,20 @@ class Pipeline(DefaultBaseModel):
         
         # then delete the pipeline object
         super(Pipeline, self).delete(*args, **kwargs)
+    
+    def launch(self, *args, **kwargs):
+        """
+        Launch the pipeline.
+        """
+        from . import launch_pipeline
+        launch_pipeline.apply_async(
+            queue='celery',
+            kwargs = {
+                'pipeline_id': self.id,
+                'user_initiated': True,
+                **kwargs
+            }
+        )
 
 
 class Stage(DefaultBaseModel):
@@ -194,7 +208,8 @@ class PipelineRun(EntityRun):
     Specific execution run of a pipeline.
     """
     pipeline = models.ForeignKey(Pipeline, related_name='runs', on_delete=models.CASCADE)
-    success = models.NullBooleanField()
+    success = models.BooleanField(null=True)
+    arguments_as_json = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{str(self.pipeline)} {self.__str_runtimes__()}"
@@ -202,9 +217,12 @@ class PipelineRun(EntityRun):
     def save(self, *args, **kwargs):
         # how many tasks need to be completed?
         required = self.pipeline.stages.all().count()
-        completed = self.stage_runs.filter(
-            completed_on__isnull=False
-        ).count()
+        try:
+            completed = self.stage_runs.filter(
+                completed_on__isnull=False
+            ).count()
+        except:
+            completed = 0
         if required == completed:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
 
@@ -234,16 +252,10 @@ class PipelineRun(EntityRun):
                 for stage in self.pipeline.stages.all():
                     # update each tasks in the stage
                     for task in stage.assigned_tasks.all():
-                        # do we have any runs that we can actually base an update off of?
-                        if not task.runs.filter(task__enabled=True).exists():
-                            continue
-
                         # get a sample of this tasks runs
-                        average_weight = task.runs.filter(
-                            task__enabled=True
-                        )[:sample_size].annotate(
-                            runtime=duration
-                        ).aggregate(models.Avg('runtime'))['runtime__avg'].total_seconds()
+                        average_weight = task.runs.all()[:sample_size].annotate(
+                            duration=duration
+                        ).aggregate(models.Avg('duration'))['duration__avg'].total_seconds()
                         task.weight  = average_weight
                         task.save()
         super(PipelineRun, self).save(*args, **kwargs)
@@ -254,7 +266,7 @@ class StageRun(EntityRun):
     """
     pipeline_run = models.ForeignKey(PipelineRun, related_name='stage_runs', on_delete=models.CASCADE)
     stage = models.ForeignKey(Stage, related_name='runs', on_delete=models.CASCADE)
-    success = models.NullBooleanField()
+    success = models.BooleanField(null=True)
 
     def __str__(self):
         return f"{str(self.stage)} {self.__str_runtimes__()}"
@@ -262,9 +274,12 @@ class StageRun(EntityRun):
     def save(self, *args, **kwargs):
         # how many tasks need to be completed?
         required = self.stage.assigned_tasks.filter(enabled=True).count()
-        completed = self.task_runs.filter(
-            completed_on__isnull=False
-        ).count()
+        try:
+            completed = self.task_runs.filter(
+                completed_on__isnull=False
+            ).count()
+        except:
+            completed = 0
         if required == completed and self.completed_on is None:
             self.completed_on = datetime.datetime.now(tz=pytz.UTC)
 
@@ -323,7 +338,7 @@ class TaskRun(EntityRun):
     """
     stage_run = models.ForeignKey(StageRun, related_name='task_runs', on_delete=models.CASCADE)
     task = models.ForeignKey(Task, related_name='runs', on_delete=models.CASCADE)
-    success = models.NullBooleanField()
+    success = models.BooleanField(null=True)
 
     def __str__(self):
         return f"{str(self.task)} {self.__str_runtimes__()}"

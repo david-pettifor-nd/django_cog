@@ -115,6 +115,11 @@ def launch_task(task_id, stage_run_id):
         kwargs = {}
         if task.arguments_as_json:
             kwargs = json.loads(task.arguments_as_json)
+
+        # also load the pipeline run arguments
+        if task_run.stage_run.pipeline_run.arguments_as_json:
+            kwargs.update(json.loads(task_run.stage_run.pipeline_run.arguments_as_json))
+
         task.status = 'Running'
         task.save()
         cog.all[task.cog.name](**kwargs)
@@ -273,9 +278,14 @@ def launch_pipeline(*args, **kwargs):
             print("!! The last pipeline run failed and we cannot overlap failed runs.  Remove the failed pipeline run or set `DJANGO_COG_OVERLAP_FAILED` to True in your Django settings.  Aborting.")
             return
 
+    # clean up the kwargs (remove the user_initiated key and pipeline_id key)
+    kwargs.pop('user_initiated', None)
+    kwargs.pop('pipeline_id', None)
+
     # otherwise, create a new pipeline run
     pipeline_run = PipelineRun.objects.create(
-        pipeline=pipeline
+        pipeline=pipeline,
+        arguments_as_json=json.dumps(kwargs)
     )
     pipeline_run.status = 'Running'
     pipeline_run.save()

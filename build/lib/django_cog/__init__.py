@@ -52,7 +52,7 @@ def defaultCogErrorHandler(error, task_run=None):
     into the database.
     """
     from .models import CogError
-    error_info = "".join(traceback.format_exception(etype=None, value=error, tb=error.__traceback__))
+    error_info = "".join(traceback.format_exception(type(error), value=error, tb=error.__traceback__))
     CogError.objects.create(
         task_run=task_run,
         traceback=error_info,
@@ -115,8 +115,13 @@ def launch_task(task_id, stage_run_id):
         kwargs = {}
         if task.arguments_as_json:
             kwargs = json.loads(task.arguments_as_json)
-        task_run.status = 'Running'
-        task_run.save()
+
+        # also load the pipeline run arguments
+        if task_run.stage_run.pipeline_run.arguments_as_json:
+            kwargs.update(json.loads(task_run.stage_run.pipeline_run.arguments_as_json))
+
+        task.status = 'Running'
+        task.save()
         cog.all[task.cog.name](**kwargs)
     except Exception as e:
         # if there's an error handler for this function, pass what ever sort of Exception we got
@@ -265,18 +270,22 @@ def launch_pipeline(*args, **kwargs):
         return
     
     # also check if there are failed runs, and if we should care about that
-    if pipeline.prevent_overlapping_runs and PipelineRun.objects.filter(
-        pipeline=pipeline
-    ).exists() and PipelineRun.objects.filter(
-        pipeline=pipeline
-    ).first().status == 'Failed' \
-    and (not hasattr(settings, 'DJANGO_COG_OVERLAP_FAILED') or settings.DJANGO_COG_OVERLAP_FAILED == False):
-        print("!! The last pipeline run failed and we cannot overlap failed runs.  Remove the failed pipeline run or set `DJANGO_COG_OVERLAP_FAILED` to True in your Django settings.  Aborting.")
-        return
+    if PipelineRun.objects.filter(pipeline=pipeline).exists():
+        if pipeline.prevent_overlapping_runs and PipelineRun.objects.filter(
+            pipeline=pipeline
+        ).first().status == 'Failed' \
+        and (not hasattr(settings, 'DJANGO_COG_OVERLAP_FAILED') or settings.DJANGO_COG_OVERLAP_FAILED == False):
+            print("!! The last pipeline run failed and we cannot overlap failed runs.  Remove the failed pipeline run or set `DJANGO_COG_OVERLAP_FAILED` to True in your Django settings.  Aborting.")
+            return
+
+    # clean up the kwargs (remove the user_initiated key and pipeline_id key)
+    kwargs.pop('user_initiated', None)
+    kwargs.pop('pipeline_id', None)
 
     # otherwise, create a new pipeline run
     pipeline_run = PipelineRun.objects.create(
-        pipeline=pipeline
+        pipeline=pipeline,
+        arguments_as_json=json.dumps(kwargs)
     )
     pipeline_run.status = 'Running'
     pipeline_run.save()
